@@ -1,0 +1,105 @@
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fancy Form</title>
+
+    <!-- You may add more stuff here -->
+    <link href="style.css" rel="stylesheet" />
+  </head>
+
+  <body>
+    <!-- You may reorganise the whole HTML, as long as your form achieves the same effect. -->
+    <form onsubmit="return !1">
+      <h1>Swap Tokens</h1>
+      <div class="swap-container">
+        <div class="swap-input-container">
+          <div class="token-selection">
+            <select id="input-token" value="BLUR">
+              <option value="BLUR">BLUR</option>
+              <option value="bNEO">bNEO</option>
+            </select>
+            <div class="token-icon">
+              <img
+                id="input-token-icon"
+                src="https://raw.githubusercontent.com/Switcheo/token-icons/main/tokens/BLUR.svg"
+                alt="BLUR"
+              />
+            </div>
+          </div>
+          <div class="amount-input">
+            <label for="input-amount">You pay</label>
+            <input
+              id="input-amount"
+              type="number"
+              min="0"
+              step="any"
+              placeholder="0.00"
+            />
+            <div class="token-price" id="input-token-price"></div>
+          </div>
+        </div>
+
+        <div class="swap-direction-button">
+          <button type="button" id="swap-direction">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="30"
+              height="30"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <path
+                d="M12 16H13.5L13.5 10H15.5L15.5 16H17L14.5 19L12 16Z"
+                fill="#000000"
+              />
+              <path
+                d="M8 8H9.5L9.5 14H11.5L11.5 8H13L10.5 5L8 8Z"
+                fill="#000000"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div class="swap-input-container">
+          <div class="token-selection">
+            <select id="output-token" value="bNEO">
+              <option value="bNEO">bNEO</option>
+              <option value="BLUR">BLUR</option>
+            </select>
+            <div class="token-icon">
+              <img
+                id="output-token-icon"
+                src="https://raw.githubusercontent.com/Switcheo/token-icons/main/tokens/bNEO.svg"
+                alt="bNEO"
+              />
+            </div>
+          </div>
+          <div class="amount-input">
+            <label for="output-amount">You receive</label>
+            <input
+              id="output-amount"
+              type="number"
+              min="0"
+              step="any"
+              placeholder="0.00"
+              readonly
+            />
+            <div class="token-price" id="output-token-price"></div>
+          </div>
+        </div>
+
+        <div class="exchange-rate" id="exchange-rate">
+          1 BLUR = 34.251540 bNEO
+        </div>
+
+        <div id="error-message" class="error-message"></div>
+
+        <button id="swap-button" type="submit">
+          <span class="button-text">Swap Tokens</span>
+          <span class="spinner"></span>
+        </button>
+      </div>
+    </form>
+    <script src="script.js"></script>
+  </body>
+</html>

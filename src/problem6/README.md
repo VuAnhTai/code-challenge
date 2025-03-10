@@ -1,5 +1,7 @@
 # Live Scoreboard API Module Specification
 
+Link design system: https://www.figma.com/board/85wZDuYKNiOiZKZde9i1xJ/Untitled?node-id=0-1&p=f&t=JDa3uuRZOsMm4uct-0
+
 ## Overview
 
 This document provides specifications for the Live Scoreboard API module, responsible for managing user scores and providing real-time updates to the website's top 10 leaderboard.
@@ -411,7 +413,3 @@ Action {
    - Edge caching for global deployment
    - Sharded database for higher throughput
    - Optimistic UI updates to reduce perceived latency
-
----
-
-This specification provides the blueprint for implementing a robust, secure, and scalable Live Scoreboard API module. The implementation team should follow these guidelines while adapting to specific infrastructure and technology constraints of the current system.

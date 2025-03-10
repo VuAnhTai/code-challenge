@@ -1,6 +1,7 @@
 import express, { Express } from 'express';
 import cors from 'cors';
 import productRoutes from './modules/product/product.routes';
+import userRoutes from './modules/user/user.routes';
 import { errorHandler, notFoundHandler } from './modules/core/middleware/error.middleware';
 import { setupSecurity } from './modules/core/middleware/security.middleware';
 import { morganMiddleware, requestId } from './modules/core/middleware/logger.middleware';
@@ -26,6 +27,7 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
 // Routes
 app.use('/api/products', productRoutes);
+app.use('/api/users', userRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -34,7 +36,7 @@ app.get('/', (req, res) => {
 });
 
 // Handle undefined routes
-// app.use(notFoundHandler);
+app.use(notFoundHandler);
 
 // Global error handler
 app.use(errorHandler);

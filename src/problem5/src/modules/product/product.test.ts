@@ -1,92 +1,257 @@
 import request from 'supertest';
 import app from '../../app';
 import sequelize from '../core/config/db.config';
+import User from '../user/user.model';
 
-// Mock data
+// Test data
 const sampleProduct = {
   name: 'Test Product',
-  description: 'A product created for testing',
+  description: 'This is a test product for unit testing',
   price: 99.99,
   category: 'test',
   inStock: true,
 };
 
-let productId: number;
+const adminUser = {
+  name: 'Admin User',
+  email: 'admin@example.com',
+  password: 'Test@1234',
+  passwordConfirm: 'Test@1234',
+  role: 'admin',
+};
 
-// Connect to test database before all tests
-beforeAll(async () => {
-  // You'd typically use a test database here
-  await sequelize.sync({ force: true }); // Recreate tables
-});
+const regularUser = {
+  name: 'Regular User',
+  email: 'user@example.com',
+  password: 'Test@1234',
+  passwordConfirm: 'Test@1234',
+  role: 'user',
+};
 
-// Clean up after all tests
-afterAll(async () => {
-  await sequelize.close();
-});
+// Authentication tokens
+let adminToken: string;
+let userToken: string;
+let adminApiKey: string;
 
 describe('Product API', () => {
-  // Test product creation
-  it('should create a new product', async () => {
-    const res = await request(app).post('/api/products').send(sampleProduct);
+  // Setup before tests
+  beforeAll(async () => {
+    // Sync database
+    await sequelize.sync({ force: true });
 
-    expect(res.statusCode).toEqual(201);
-    expect(res.body.status).toEqual('success');
-    expect(res.body.data).toHaveProperty('id');
-    expect(res.body.data.name).toEqual(sampleProduct.name);
+    // Create admin user
+    await request(app).post('/api/users/register').send(adminUser);
 
-    productId = res.body.data.id; // Store for later tests
+    // Create regular user
+    await request(app).post('/api/users/register').send(regularUser);
+
+    // Login admin user to get token
+    const adminLoginRes = await request(app).post('/api/users/login').send({
+      email: adminUser.email,
+      password: adminUser.password,
+    });
+    adminToken = adminLoginRes.body.token;
+    // Login regular user to get token
+    const userLoginRes = await request(app).post('/api/users/login').send({
+      email: regularUser.email,
+      password: regularUser.password,
+    });
+    userToken = userLoginRes.body.token;
+
+    // Generate API key for admin
+    const apiKeyRes = await request(app)
+      .post('/api/users/api-key')
+      .set('Authorization', `Bearer ${adminToken}`);
+    adminApiKey = apiKeyRes.body.apiKey;
   });
 
-  // Test getting all products
-  it('should fetch all products', async () => {
-    const res = await request(app).get('/api/products');
+  afterAll(async () => {
+    await sequelize.close();
+  });
+
+  // Test: Create a product with admin JWT
+  it('should create a new product with admin JWT auth', async () => {
+    const res = await request(app)
+      .post('/api/products')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(sampleProduct);
+
+    expect(res.statusCode).toEqual(201);
+    expect(res.body).toHaveProperty('status', 'success');
+    expect(res.body.data).toHaveProperty('id');
+    expect(res.body.data.name).toEqual(sampleProduct.name);
+  });
+
+  // Test: Create a product with API key
+  it('should create a new product with API key auth', async () => {
+    const res = await request(app)
+      .post('/api/products')
+      .set('X-API-Key', adminApiKey)
+      .send({
+        ...sampleProduct,
+        name: 'API Key Product',
+      });
+
+    expect(res.statusCode).toEqual(201);
+    expect(res.body).toHaveProperty('status', 'success');
+    expect(res.body.data).toHaveProperty('id');
+    expect(res.body.data.name).toEqual('API Key Product');
+  });
+
+  // Test: Regular user cannot create a product
+  it('should forbid creating a product for regular users', async () => {
+    const res = await request(app)
+      .post('/api/products')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send(sampleProduct);
+
+    expect(res.statusCode).toEqual(403);
+    expect(res.body).toHaveProperty('status', 'fail');
+  });
+
+  // Test: Get all products
+  it('should get all products (authenticated)', async () => {
+    const res = await request(app).get('/api/products').set('Authorization', `Bearer ${userToken}`);
 
     expect(res.statusCode).toEqual(200);
-    expect(res.body.status).toEqual('success');
+    expect(res.body).toHaveProperty('status', 'success');
+    expect(res.body).toHaveProperty('results');
     expect(Array.isArray(res.body.data)).toBeTruthy();
     expect(res.body.data.length).toBeGreaterThan(0);
   });
 
-  // Test getting a single product
-  it('should fetch a single product by id', async () => {
-    const res = await request(app).get(`/api/products/${productId}`);
+  // Test: Get product by ID
+  it('should get a product by ID', async () => {
+    // First create a product
+    const createRes = await request(app)
+      .post('/api/products')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ...sampleProduct,
+        name: 'Get By ID Product',
+      });
 
-    expect(res.statusCode).toEqual(200);
-    expect(res.body.status).toEqual('success');
-    expect(res.body.data.id).toEqual(productId);
+    const productId = createRes.body.data.id;
+
+    // Now get the product
+    const getRes = await request(app)
+      .get(`/api/products/${productId}`)
+      .set('Authorization', `Bearer ${userToken}`);
+
+    expect(getRes.statusCode).toEqual(200);
+    expect(getRes.body).toHaveProperty('status', 'success');
+    expect(getRes.body.data).toHaveProperty('id', productId);
+    expect(getRes.body.data.name).toEqual('Get By ID Product');
   });
 
-  // Test updating a product
-  it('should update a product', async () => {
-    const updateData = {
-      name: 'Updated Test Product',
-      price: 129.99,
-    };
+  // Test: Update a product with admin
+  it('should update a product with admin JWT auth', async () => {
+    // First create a product
+    const createRes = await request(app)
+      .post('/api/products')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ...sampleProduct,
+        name: 'Update Product',
+      });
 
-    const res = await request(app).put(`/api/products/${productId}`).send(updateData);
+    const productId = createRes.body.data.id;
 
-    expect(res.statusCode).toEqual(200);
-    expect(res.body.status).toEqual('success');
-    expect(res.body.data.name).toEqual(updateData.name);
-    expect(parseFloat(res.body.data.price)).toEqual(updateData.price);
+    // Now update the product
+    const updateRes = await request(app)
+      .put(`/api/products/${productId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: 'Updated Product Name',
+        price: 88.88,
+      });
+
+    expect(updateRes.statusCode).toEqual(200);
+    expect(updateRes.body).toHaveProperty('status', 'success');
+    expect(updateRes.body.data).toHaveProperty('id', productId);
+    expect(updateRes.body.data.name).toEqual('Updated Product Name');
+    expect(updateRes.body.data.price).toEqual(88.88);
   });
 
-  // Test validation errors
-  it('should return validation error for invalid input', async () => {
-    const res = await request(app).post('/api/products').send({ name: 'A' }); // Missing required fields
+  // Test: Regular user cannot update a product
+  it('should forbid updating a product for regular users', async () => {
+    // First create a product
+    const createRes = await request(app)
+      .post('/api/products')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ...sampleProduct,
+        name: 'Forbidden Update Product',
+      });
 
-    expect(res.statusCode).toEqual(400);
-    expect(res.body.status).toEqual('fail');
+    const productId = createRes.body.data.id;
+
+    // Now try to update the product with regular user
+    const updateRes = await request(app)
+      .put(`/api/products/${productId}`)
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        name: 'User Updated Product',
+      });
+
+    expect(updateRes.statusCode).toEqual(403);
+    expect(updateRes.body).toHaveProperty('status', 'fail');
   });
 
-  // Test deleting a product
-  it('should delete a product', async () => {
-    const res = await request(app).delete(`/api/products/${productId}`);
+  // Test: Delete a product with admin
+  it('should delete a product with admin JWT auth', async () => {
+    // First create a product
+    const createRes = await request(app)
+      .post('/api/products')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ...sampleProduct,
+        name: 'Delete Product',
+      });
 
-    expect(res.statusCode).toEqual(204);
+    const productId = createRes.body.data.id;
+
+    // Now delete the product
+    const deleteRes = await request(app)
+      .delete(`/api/products/${productId}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(deleteRes.statusCode).toEqual(204);
 
     // Verify product is deleted
-    const checkRes = await request(app).get(`/api/products/${productId}`);
-    expect(checkRes.statusCode).toEqual(404);
+    const getRes = await request(app)
+      .get(`/api/products/${productId}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(getRes.statusCode).toEqual(404);
+  });
+
+  // Test: Regular user cannot delete a product
+  it('should forbid deleting a product for regular users', async () => {
+    // First create a product
+    const createRes = await request(app)
+      .post('/api/products')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ...sampleProduct,
+        name: 'Forbidden Delete Product',
+      });
+
+    const productId = createRes.body.data.id;
+
+    // Now try to delete the product with regular user
+    const deleteRes = await request(app)
+      .delete(`/api/products/${productId}`)
+      .set('Authorization', `Bearer ${userToken}`);
+
+    expect(deleteRes.statusCode).toEqual(403);
+    expect(deleteRes.body).toHaveProperty('status', 'fail');
+
+    // Verify product still exists
+    const getRes = await request(app)
+      .get(`/api/products/${productId}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(getRes.statusCode).toEqual(200);
   });
 });

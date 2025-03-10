@@ -4,6 +4,7 @@ import { Express } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { productSchemas } from '../../product/product.schema';
+import { userSchemas } from '../../user/user.schema';
 const version = '1.0.0';
 // Read environment variables
 const environment = process.env.NODE_ENV || 'development';
@@ -112,6 +113,7 @@ const options: swaggerJSDoc.Options = {
       schemas: {
         ...responseSchemas,
         ...productSchemas,
+        ...userSchemas,
       },
       securitySchemes,
       parameters: {

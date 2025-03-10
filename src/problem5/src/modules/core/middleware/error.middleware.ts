@@ -40,5 +40,9 @@ export const errorHandler = (
 
 // 404 handler for undefined routes
 export const notFoundHandler = (req: Request, res: Response, next: NextFunction) => {
+  if (req.originalUrl.includes('api-docs')) {
+    return next();
+  }
+
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 }; 

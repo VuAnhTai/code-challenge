@@ -8,8 +8,22 @@ import {
 } from './product.controller';
 import { createProductSchema, updateProductSchema } from './product.schema';
 import { validate } from '../core/middleware/validator.middleware';
+import { protect, protectApiKey, restrictTo } from '../user/auth.middleware';
 
 const router = Router();
+
+// Use either JWT or API key authentication for all product routes
+router.use((req, res, next) => {
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    // JWT authentication
+    return protect(req, res, next);
+  } else if (req.headers['x-api-key']) {
+    // API key authentication
+    return protectApiKey(req, res, next);
+  }
+
+  return res.status(401).json({ message: 'Unauthorized' });
+});
 
 /**
  * @swagger
@@ -17,6 +31,8 @@ const router = Router();
  *   post:
  *     summary: Create a new product
  *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -70,6 +86,8 @@ const router = Router();
  *   get:
  *     summary: Get all products
  *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: category
@@ -112,7 +130,10 @@ const router = Router();
  *       500:
  *         description: Server error
  */
-router.route('/').post(validate(createProductSchema), createProduct).get(getProducts);
+router
+  .route('/')
+  .post(restrictTo('admin'), validate(createProductSchema), createProduct)
+  .get(getProducts);
 
 /**
  * @swagger
@@ -120,6 +141,8 @@ router.route('/').post(validate(createProductSchema), createProduct).get(getProd
  *   get:
  *     summary: Get a product by ID
  *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -148,6 +171,8 @@ router.route('/').post(validate(createProductSchema), createProduct).get(getProd
  *   put:
  *     summary: Update a product
  *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -200,6 +225,8 @@ router.route('/').post(validate(createProductSchema), createProduct).get(getProd
  *   delete:
  *     summary: Delete a product
  *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -218,7 +245,7 @@ router.route('/').post(validate(createProductSchema), createProduct).get(getProd
 router
   .route('/:id')
   .get(getProductById)
-  .put(validate(updateProductSchema), updateProduct)
-  .delete(deleteProduct);
+  .put(restrictTo('admin'), validate(updateProductSchema), updateProduct)
+  .delete(restrictTo('admin'), deleteProduct);
 
 export default router;
